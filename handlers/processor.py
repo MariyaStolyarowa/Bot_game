@@ -1,163 +1,288 @@
 from winreg import QueryInfoKey, QueryValue, QueryValueEx
 from aiogram import types, Dispatcher
-from keyboards import callback_data, choice, action_callback 
+# from keyboards import callback_data, choice, action_callback 
 from create_bot import dp, bot
 from aiogram.types import Message, CallbackQuery
 import re
-from decimal import Decimal
-value = ''
-old_value = ''
-list = []
-list_elemens = []
+import random
+
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import emojis
+import handlers.processor
+chey_hod = ''
+
+X = "\U0000274C"
+O = "\U00002B55"
+win = 0
+
+def key_board(list: list): 
+    choice = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=list[0], callback_data="1"),
+                InlineKeyboardButton(text=list[1], callback_data="2"),
+                InlineKeyboardButton(text=list[2], callback_data="3"),
+            ],
+            [
+                InlineKeyboardButton(text=list[3], callback_data="4"),
+                InlineKeyboardButton(text=list[4], callback_data="5"),
+                InlineKeyboardButton(text=list[5], callback_data="6"),
+            ],
+            [
+                InlineKeyboardButton(text=list[6], callback_data="7"),
+                InlineKeyboardButton(text=list[7], callback_data="8"),
+                InlineKeyboardButton(text=list[8], callback_data="9"),
+            ],
+            [
+                InlineKeyboardButton(text=f"{list[-1]}", callback_data=f"{list[-1]}"),
+            ]
+        ]
+    )
+    return choice
+
+
 @dp.message_handler(commands=['start'])
 async def start_command(message: types.Message):
-    global value
-    await bot.send_message(message.from_user.id, "Привет!", reply_markup=choice)
-    value = '0'
+    global list, win
+    list = ['\U00002753', '\U00002753', '\U00002753', '\U00002753', '\U00002753', '\U00002753', '\U00002753', '\U00002753', '\U00002753', 'Узнать чей первый ход']
+    win = 0
+    await bot.send_message(message.from_user.id, "Привет! Узнай чей ход!", reply_markup=key_board(list))
+    
     
 
 @dp.message_handler(commands=['help'])
 async def help_command(message: types.Message):
-    global value
-    await message.reply("Набери на клавиатуре, что тебе нужно посчитать.")
-    await bot.send_message(message.from_user.id, "0", reply_markup=choice)
-    value = '0'
+    global list, win
+    list = ['\U00002753', '\U00002753', '\U00002753', '\U00002753', '\U00002753', '\U00002753', '\U00002753', '\U00002753', '\U00002753', 'Узнать чей первый ход']
+    win = 0
+    await message.reply(f"Просто играем! \U0001F600")
+    await bot.send_message(message.from_user.id, "Узнай чей ход!", reply_markup=key_board(list))
+    
+def check_win(list: list, win):
+        if (list[0] == list[1] == list[2] == O) or (list[3] == list[4] == list[5] == O) or (list[6] == list[7] == list[8] == O) or (list[0] == list[3] == list[6] == O) or (list[1] == list[4] == list[7] == O) or (list[2] == list[5] == list[8] == O) or (list[0] == list[4] == list[8] == O) or (list[2] == list[4] == list[6] == O):
+            list[-1] = f"Победил {O}! \U0001F3C6"
+            win = 1
+            
+        elif (list[0] == list[1] == list[2] == X) or (list[3] == list[4] == list[5] == X) or (list[6] == list[7] == list[8] == X) or (list[0] == list[3] == list[6] == X) or (list[1] == list[4] == list[7] == X) or (list[2] == list[5] == list[8] == X) or (list[0] == list[4] == list[8] == X) or (list[2] == list[4] == list[6] == X):
+            list[-1] = f"Победил {X} ! \U0001F3C6" 
+            win = 1
+        return (list, win)   
+
+def change_player(list:list, chey_hod):
+    global O, X
+    if chey_hod == O:
+        list[-1] = f'Ход {X}'
+        chey_hod = X
+    elif chey_hod == X:
+        list[-1] = f'Ход {O}'
+        chey_hod = O
+    return (list, chey_hod)  
 
 @dp.callback_query_handler(lambda c: c.data !='' )
 async def callback_func(query: types.CallbackQuery):
-    global value, old_value, list, list_oper,list_elemens
-    
+    global list, chey_hod, win 
     data = query.data
-      
-    if data == 'C':
-        value = '0'
+         
+    if data == 'Узнать чей первый ход':
+        chey_hod = random.randrange(0,2)
+        if chey_hod == 0:
+            list[-1] = f'Ход {O}'
+            chey_hod = O
+        else:
+            list[-1] = f'Ход {X}'
+            chey_hod = X
+        await query.message.edit_text("Сделайте ход", reply_markup=key_board(list))
     
-    elif data == '+':
-        if '=' in value:# для контроля ввода знака действия после '='
-            value = data
-        elif value == '0':
-            value = data
-        else:
-            list = re.split(r"[-|+|*|/]+", value) # для контроля лишней точки
-            list_elemens = value.split() # для контроля лишнего знака действия
-            if list_elemens[-1] in "+-*/":
+
+    elif data == '1':
+       
+        if list[0] == '\U00002753':
+            if win == 1 or chey_hod == '':
                 await query.answer()
-            else:
-                value += f' {data} '
+                
+            elif win == 0:
+                
+                list[0] = chey_hod
+                list, chey_hod = change_player(list, chey_hod)
+                list, win = check_win(list, win)
+                if win == 0:
+                    if '\U00002753'  in list:
+                        await query.message.edit_text(" Сделайте ход ", reply_markup=key_board(list))
+                    else: 
+                        list[-1] = f"Победила дружба!"
+                        await query.message.edit_text("ИГРА ОКОНЧЕНА!!!", reply_markup=key_board(list))
+                elif win == 1:
+                    await query.message.edit_text("СТОП!!!", reply_markup=key_board(list))
+        else:  
+            await query.answer()   
         
-    elif data == '-':
-        if '=' in value: # для контроля ввода знака действия после '='
-            value = data
-        elif value == '0':
-            value = data
-        else:
-            list = re.split(r"[-|+|*|/]+", value) # для контроля лишней точки
-            list_elemens = value.split() # для контроля лишнего знака действия
-            if list_elemens[-1] in "+-*/":
+    elif data == '2':
+        
+        if list[1] == '\U00002753':
+            if win == 1 or chey_hod == '':
                 await query.answer()
-            else:
-                value += f' {data} '
-        
-    elif data == '*':
-        if '=' in value:# для контроля ввода знака действия после '='
-            await query.answer()
-        elif value == '0':
-            await query.answer()
-        else:
-            list = re.split(r"[-|+|*|/]+", value) # для контроля лишней точки
-            list_elemens = value.split() # для контроля лишнего знака действия
-            if list_elemens[-1] in "+-*/":
+                
+            elif win == 0:
+                
+                list[1] = chey_hod
+                list, chey_hod = change_player(list, chey_hod)
+                list, win = check_win(list, win)
+                if win == 0:
+                    if '\U00002753'  in list:
+                        await query.message.edit_text(" Сделайте ход ", reply_markup=key_board(list))
+                    else: 
+                        list[-1] = f"Победила дружба!"
+                        await query.message.edit_text("ИГРА ОКОНЧЕНА!!!", reply_markup=key_board(list))
+                elif win == 1:
+                    await query.message.edit_text("СТОП!!!", reply_markup=key_board(list)) 
+        else:  
+            await query.answer()   
+       
+    elif data == '3':
+       
+        if list[2] == '\U00002753':
+            if win == 1 or chey_hod == '':
                 await query.answer()
-            else:
-                value += f' {data} '
+                
+            elif win == 0:
+                
+                list[2] = chey_hod
+                list, chey_hod = change_player(list, chey_hod)
+                list, win = check_win(list, win)
+                if win == 0:
+                    if '\U00002753'  in list:
+                        await query.message.edit_text(" Сделайте ход ", reply_markup=key_board(list))
+                    else: 
+                        list[-1] = f"Победила дружба!"
+                        await query.message.edit_text("ИГРА ОКОНЧЕНА!!!", reply_markup=key_board(list))
+                elif win == 1:
+                    await query.message.edit_text("СТОП!!!", reply_markup=key_board(list))
+        else:  
+            await query.answer()   
+            
+
+    elif data == '4':
         
-    elif data == '/':
-        if '=' in value: # для контроля ввода знака действия после '='
-            await query.answer()
-        elif value == '0':
-            await query.answer()
-        else:
-            list = re.split(r"[-|+|*|/]+", value) # для контроля лишней точки
-            list_elemens = value.split() # для контроля лишнего знака действия
-            if list_elemens[-1] in "+-*/":
+        if list[3] == '\U00002753':
+            if win == 1 or chey_hod == '':
                 await query.answer()
-            else:
-                value += f' {data} '
-        
-        
-    elif data == '<':
-        value = value[:-1] if len(value) != 1 else '0'
-    elif data == '.': 
-        list = re.split(r"[-|+|*|/]+", value)
-        list_elemens = value.split()
-        print(list)
-        if list[-1].count('.') != 0: # если в последнем числе есть '.', то вторую не даст поставить
-            await query.answer()
-        elif list_elemens[-1] in '-+*/': # нельзя ставь точку после знаков действий
-            await query.answer()
-        else:
-            value += data
+                
+            elif win == 0:
+                list[3] = chey_hod
+                list, chey_hod = change_player(list, chey_hod)
+                list, win = check_win(list, win)
+                if win == 0:
+                    if '\U00002753'  in list:
+                        await query.message.edit_text(" Сделайте ход ", reply_markup=key_board(list))
+                    else: 
+                        list[-1] = f"Победила дружба!"
+                        await query.message.edit_text("ИГРА ОКОНЧЕНА!!!", reply_markup=key_board(list))
+                elif win == 1:
+                    await query.message.edit_text("СТОП!!!", reply_markup=key_board(list))
+        else:  
+            await query.answer()   
            
-    elif data == '=':
-        if '=' in value: # Обработка повторного нажатия "="
-            await query.answer()
-        else:
-            old_value = value
-            list_elemens = value.split()
-            
-            if list_elemens[-1] in '*/-+':
-                list_elemens = list_elemens[:-1] # Игнорируем лишний знак действия 
-                      
-            actions = {
-            "*": lambda x, y: str(Decimal(x) * Decimal(y)),
-            "/": lambda x, y: str(Decimal(x) / Decimal(y)),
-            "+": lambda x, y: str(Decimal(x) + Decimal(y)),
-            "-": lambda x, y: str(Decimal(x) - Decimal(y))}
-            
-            
-            list_oper_ind = [i for i,e in enumerate(list_elemens) if e in '*/']
-            while list_oper_ind:
-                ind_op = list_oper_ind[0]
-                a, b, c = list_elemens[ind_op-1:ind_op+2]
-                if b == '/' and c == '0':
-                    value = 'Ошибка! Делить на 0 нельзя!'
-                    await query.message.edit_text("Ошибка! Делить на 0 нельзя!", reply_markup=choice)
-
-                else:
-                    list_elemens[ind_op-1:ind_op+2] = [actions[b](a,c)]
-                    list_oper_ind = [i for i,e in enumerate(list_elemens) if e in '*/']
-                    
-            while len(list_elemens) > 1:
-                a, b, c = list_elemens[:3]
-                list_elemens[:3] = [actions[b](a,c)] 
-            
-            value = f'{old_value} = {list_elemens[0]}'
-            
-       
-    else:
-        if '=' in value:
-            value = data
-       
-        elif value == '0':
-            value = data
         
-        elif value == 'Привет!':
-            value = data
+    elif data == '5':
         
-        else:
-            value += data
-    
-    if value != old_value:
-        if value == " ":
-            await query.message.edit_text("0", reply_markup=choice)
-            
-        else:
-            await query.message.edit_text(f"{value}", reply_markup=choice)
-            
-    # old_value = value
-    # if value == 'Ошибка! Делить на 0 нельзя!':
-    #     value = '0'
+        if list[4] == '\U00002753':
+            if win == 1 or chey_hod == '':
+                await query.answer()
+                
+            elif win == 0:
+                list[4] = chey_hod
+                list, chey_hod = change_player(list, chey_hod)
+                list, win = check_win(list, win)
+                if win == 0:
+                    if '\U00002753'  in list:
+                        await query.message.edit_text(" Сделайте ход ", reply_markup=key_board(list))
+                    else: 
+                        list[-1] = f"Победила дружба!"
+                        await query.message.edit_text("ИГРА ОКОНЧЕНА!!!", reply_markup=key_board(list))
+                elif win == 1:
+                    await query.message.edit_text("СТОП!!!", reply_markup=key_board(list))
+        else:  
+            await query.answer()    
+           
+    elif data == '6':
+        
+        if list[5] == '\U00002753':
+            if win == 1 or chey_hod == '':
+                await query.answer()
+                
+            elif win == 0:
+                list[5] = chey_hod
+                list, chey_hod = change_player(list, chey_hod)
+                list, win = check_win(list, win)
+                if win == 0:
+                    if '\U00002753'  in list:
+                        await query.message.edit_text(" Сделайте ход ", reply_markup=key_board(list))
+                    else: 
+                        list[-1] = f"Победила дружба!"
+                        await query.message.edit_text("ИГРА ОКОНЧЕНА!!!", reply_markup=key_board(list))
+                elif win == 1:
+                    await query.message.edit_text("СТОП!!!", reply_markup=key_board(list))
+        else:  
+            await query.answer()       
 
+    elif data == '7':
+        if list[6] == '\U00002753':
+            if win == 1 or chey_hod == '':
+                await query.answer()
+                
+            elif win == 0:
+                list[6] = chey_hod
+                list, chey_hod = change_player(list, chey_hod)
+                list, win = check_win(list, win)
+                if win == 0:
+                    if '\U00002753'  in list:
+                        await query.message.edit_text(" Сделайте ход ", reply_markup=key_board(list))
+                    else: 
+                        list[-1] = f"Победила дружба!"
+                        await query.message.edit_text("ИГРА ОКОНЧЕНА!!!", reply_markup=key_board(list))
+                elif win == 1:
+                    await query.message.edit_text("СТОП!!!", reply_markup=key_board(list))
+        else:  
+            await query.answer()        
 
+    elif data == '8':
+        
+        if list[7] == '\U00002753':
+            if win == 1 or chey_hod == '':
+                await query.answer()
+                
+            elif win == 0:
+                list[7] = chey_hod
+                list, chey_hod = change_player(list, chey_hod)
+                list, win = check_win(list, win)
+                if win == 0:
+                    if '\U00002753'  in list:
+                        await query.message.edit_text(" Сделайте ход ", reply_markup=key_board(list))
+                    else: 
+                        list[-1] = f"Победила дружба!"
+                        await query.message.edit_text("ИГРА ОКОНЧЕНА!!!", reply_markup=key_board(list))
+                elif win == 1:
+                    await query.message.edit_text("СТОП!!!", reply_markup=key_board(list))
+        else:  
+            await query.answer()    
+             
 
-    
+    elif data == '9':
+        
+        if list[8] == '\U00002753':
+            if win == 1 or chey_hod == '':
+                await query.answer()
+                
+            elif win == 0:
+                list[8] = chey_hod
+                list, chey_hod = change_player(list, chey_hod)
+                list, win = check_win(list, win)
+                if win == 0:
+                    await query.message.edit_text(" Сделайте ход ", reply_markup=key_board(list))
+                elif win == 1:
+                    await query.message.edit_text("СТОП!!!", reply_markup=key_board(list))
+        else:  
+            await query.answer()    
+
+    elif data != 'Узнать чей первый ход':
+        await query.answer()      
